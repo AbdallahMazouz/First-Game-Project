@@ -1,99 +1,50 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+let gameStarted = false;
+let isMultiplayer = false;
+
 // Ball
 let ball = {
   x: 400,
-  y: 230,
+  y: 250,
   radius: 10,
   dx: 4,
   dy: 4
 };
 
-// Paddles
+// Scores
+let playerScore = 0;
+let aiScore = 0;
+
+// Paddle
 let paddleBottom = {
-  width: 120,
-  height: 12,
   x: 340,
-  y: canvas.height - 40,
-  speed: 7,
+  y: canvas.height - 30,
+  width: 120,
+  height: 10,
+  speed: 8,
   movingLeft: false,
-  movingRight: false,
-  color: "cyan"
+  movingRight: false
 };
 
 let paddleTop = {
-  width: 120,
-  height: 12,
   x: 340,
-  y: 30,
-  speed: 7,
-  movingLeft: false,
-  movingRight: false,
-  color: "magenta"
+  y: 20,
+  width: 120,
+  height: 10,
+  speed: 6
 };
 
-// Game state
-let level = 1;
-let levelDuration = 20; // seconds
-let timeRemaining = levelDuration;
-let lastTimestamp = performance.now();
-let levelMessage = "";
-let messageTimer = 0;
-let isMultiplayer = false;
-let gameStarted = false;
-
-function resetBallAndPaddle() {
+// ------------------ RESET BALL ------------------
+function resetBall(direction = 1) {
   ball.x = canvas.width / 2;
   ball.y = canvas.height / 2;
-  ball.dx = (Math.random() > 0.5 ? 1 : -1) * (4 + (level - 1) * 0.5);
-  ball.dy = -Math.abs(4 + (level - 1) * 0.5);
-  paddleBottom.x = (canvas.width - paddleBottom.width) / 2;
-  paddleTop.x = (canvas.width - paddleTop.width) / 2;
+  ball.dx = direction * 4;
+  ball.dy = (Math.random() > 0.5 ? 1 : -1) * 4;
 }
 
-function setLevelMessage(text) {
-  levelMessage = text;
-  messageTimer = 1.5; // seconds
-}
-
-function startNextLevel() {
-  level += 1;
-  levelDuration = Math.max(5, 20 - (level - 1) * 2);
-  timeRemaining = levelDuration;
-  paddleBottom.speed = 7 + (level - 1) * 0.5;
-  paddleTop.speed = 7 + (level - 1) * 0.5;
-  setLevelMessage("Level " + level + " - Go!");
-  resetBallAndPaddle();
-}
-
-function checkLevelComplete() {
-  if (timeRemaining <= 0) {
-    startNextLevel();
-  }
-}
-
-function startGame(multiplayer) {
-  isMultiplayer = multiplayer;
-  gameStarted = true;
-  document.getElementById("menu").classList.add("hidden");
-  document.getElementById("game").classList.remove("hidden");
-  if (!isMultiplayer) {
-    paddleTop.y = -100;  // move top paddle out of view in single-player
-  } else {
-    paddleTop.y = 30;
-  }
-
-  resetBallAndPaddle();
-  setLevelMessage("Level " + level + " - Start!");
-  requestAnimationFrame(update);
-}
-
-// Initialize play
-resetBallAndPaddle();
-setLevelMessage("Level " + level + " - Start!");
-
-// Draw ball
+// ------------------ DRAW ------------------
 function drawBall() {
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
@@ -102,152 +53,129 @@ function drawBall() {
   ctx.closePath();
 }
 
-// Draw paddle
 function drawPaddle(p) {
-  ctx.fillStyle = p.color;
+  ctx.fillStyle = "white";
   ctx.fillRect(p.x, p.y, p.width, p.height);
 }
 
-function checkPaddleCollision(p) {
-  const collideVertical = p === paddleBottom
-    ? (ball.y + ball.radius >= p.y && ball.y - ball.radius <= p.y + p.height)
-    : (ball.y - ball.radius <= p.y + p.height && ball.y + ball.radius >= p.y);
+// ------------------ AI ------------------
+function moveAI() {
+  let target = ball.x - paddleTop.width / 2;
+  paddleTop.x += (target - paddleTop.x) * 0.1;
 
-  if (
-    ball.x >= p.x &&
-    ball.x <= p.x + p.width &&
-    collideVertical
-  ) {
-    ball.dx = (ball.x - (p.x + p.width / 2)) / (p.width / 2) * 5;
-    ball.dy = p === paddleBottom ? -Math.abs(ball.dy) : Math.abs(ball.dy);
+  if (paddleTop.x < 0) paddleTop.x = 0;
+  if (paddleTop.x + paddleTop.width > canvas.width) {
+    paddleTop.x = canvas.width - paddleTop.width;
   }
 }
 
-// Update game
-function update() {
-  if (!gameStarted) {
-    requestAnimationFrame(update);
-    return;
+// ------------------ COLLISION ------------------
+function checkCollision(p) {
+  if (
+    ball.x > p.x &&
+    ball.x < p.x + p.width &&
+    ball.y + ball.radius > p.y &&
+    ball.y - ball.radius < p.y + p.height
+  ) {
+    ball.dy *= -1;
   }
+}
+
+// ------------------ UPDATE ------------------
+function update() {
+  if (!gameStarted) return;
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Move ball
   ball.x += ball.dx;
   ball.y += ball.dy;
 
-  // Wall collision
-  if (ball.y - ball.radius < 0) {
-    ball.dy *= -1;
-  }
-
-  if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) {
+  // Walls
+  if (ball.x - ball.radius < 0 || ball.x + ball.radius > canvas.width) {
     ball.dx *= -1;
   }
 
-  // (Old single-paddle block removed; using checkPaddleCollision for both paddles.)
+  // Score
+  if (ball.y < 0) {
+    playerScore++;
+    resetBall(1);
+  }
+
+  if (ball.y > canvas.height) {
+    aiScore++;
+    resetBall(-1);
+  }
 
   // Paddle movement
-  if (paddleBottom.movingLeft && paddleBottom.x > 0) {
-    paddleBottom.x -= paddleBottom.speed;
-  }
-  if (paddleBottom.movingRight && paddleBottom.x + paddleBottom.width < canvas.width) {
-    paddleBottom.x += paddleBottom.speed;
+  if (paddleBottom.movingLeft) paddleBottom.x -= paddleBottom.speed;
+  if (paddleBottom.movingRight) paddleBottom.x += paddleBottom.speed;
+
+  if (!isMultiplayer) {
+    moveAI();
+  } else {
+    if (paddleTop.movingLeft) paddleTop.x -= paddleTop.speed;
+    if (paddleTop.movingRight) paddleTop.x += paddleTop.speed;
   }
 
-  if (paddleTop.movingLeft && paddleTop.x > 0) {
-    paddleTop.x -= paddleTop.speed;
-  }
-  if (paddleTop.movingRight && paddleTop.x + paddleTop.width < canvas.width) {
-    paddleTop.x += paddleTop.speed;
-  }
+  // Boundaries
+  paddleBottom.x = Math.max(0, Math.min(canvas.width - paddleBottom.width, paddleBottom.x));
+  paddleTop.x = Math.max(0, Math.min(canvas.width - paddleTop.width, paddleTop.x));
 
-  // Level timer update
-  let now = performance.now();
-  let delta = (now - lastTimestamp) / 1000;
-  lastTimestamp = now;
-  messageTimer = Math.max(0, messageTimer - delta);
-  timeRemaining = Math.max(0, timeRemaining - delta);
-  checkLevelComplete();
+  // Collisions
+  checkCollision(paddleBottom);
+  checkCollision(paddleTop);
 
+  // Draw
   drawBall();
   drawPaddle(paddleBottom);
   drawPaddle(paddleTop);
 
-  // Paddle collision
-  checkPaddleCollision(paddleBottom);
-  checkPaddleCollision(paddleTop);
-
-  // HUD
+  // Scores
   ctx.fillStyle = "white";
-  ctx.font = "18px Segoe UI, sans-serif";
-  ctx.fillText("Level: " + level, 16, 24);
-  ctx.fillText("Time: " + Math.max(0, Math.ceil(timeRemaining)), 16, 48);
-
-  if (messageTimer > 0) {
-    ctx.font = "26px Segoe UI, sans-serif";
-    ctx.fillStyle = "#00ffff";
-    ctx.fillText(levelMessage, canvas.width / 2 - 110, 80);
-  }
-
-  // Reset if ball falls below canvas (repeat attempt the same level)
-  if (ball.y - ball.radius > canvas.height) {
-    setLevelMessage("Ouch! Try again");
-    timeRemaining = levelDuration;
-    resetBallAndPaddle();
-  }
+  ctx.font = "20px Arial";
+  ctx.fillText(`Player: ${playerScore}`, 20, 30);
+  ctx.fillText(`AI: ${aiScore}`, 650, 30);
 
   requestAnimationFrame(update);
 }
 
-// Keyboard controls
-window.addEventListener("keydown", (event) => {
-  if (event.key === "ArrowLeft") {
-    paddleBottom.movingLeft = true;
-  }
-  if (event.key === "ArrowRight") {
-    paddleBottom.movingRight = true;
-  }
-  if (event.key === "a") {
-    paddleTop.movingLeft = true;
-  }
-  if (event.key === "d") {
-    paddleTop.movingRight = true;
-  }
+// ------------------ INPUT ------------------
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowLeft") paddleBottom.movingLeft = true;
+  if (e.key === "ArrowRight") paddleBottom.movingRight = true;
+
+  if (e.key === "a") paddleTop.movingLeft = true;
+  if (e.key === "d") paddleTop.movingRight = true;
 });
 
-window.addEventListener("keyup", (event) => {
-  if (event.key === "ArrowLeft") {
-    paddleBottom.movingLeft = false;
-  }
-  if (event.key === "ArrowRight") {
-    paddleBottom.movingRight = false;
-  }
-  if (event.key === "a") {
-    paddleTop.movingLeft = false;
-  }
-  if (event.key === "d") {
-    paddleTop.movingRight = false;
-  }
+document.addEventListener("keyup", (e) => {
+  if (e.key === "ArrowLeft") paddleBottom.movingLeft = false;
+  if (e.key === "ArrowRight") paddleBottom.movingRight = false;
+
+  if (e.key === "a") paddleTop.movingLeft = false;
+  if (e.key === "d") paddleTop.movingRight = false;
 });
 
-// Mouse control (bottom paddle)
-canvas.addEventListener("mousemove", (event) => {
-  const rect = canvas.getBoundingClientRect();
-  const mouseX = event.clientX - rect.left;
-  paddleBottom.x = mouseX - paddleBottom.width / 2;
-  if (paddleBottom.x < 0) paddleBottom.x = 0;
-  if (paddleBottom.x + paddleBottom.width > canvas.width) paddleBottom.x = canvas.width - paddleBottom.width;
-});
+// ------------------ MENU ------------------
+document.getElementById("single").onclick = () => {
+  isMultiplayer = false;
+  startGame();
+};
 
-canvas.addEventListener("mouseleave", () => {
-  paddleBottom.movingLeft = false;
-  paddleBottom.movingRight = false;
-  paddleTop.movingLeft = false;
-  paddleTop.movingRight = false;
-});
+document.getElementById("multi").onclick = () => {
+  isMultiplayer = true;
+  startGame();
+};
 
-// Menu buttons
-const btnSingle = document.getElementById("btnSingle");
-const btnMulti = document.getElementById("btnMulti");
-btnSingle.addEventListener("click", () => startGame(false));
-btnMulti.addEventListener("click", () => startGame(true));
+function startGame() {
+  document.getElementById("menu").style.display = "none";
+  canvas.style.display = "block";
+
+  gameStarted = true;
+  playerScore = 0;
+  aiScore = 0;
+
+  resetBall();
+  update();
+}
