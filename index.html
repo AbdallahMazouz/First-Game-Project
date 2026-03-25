@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pong Pong Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .container {
+      text-align: center;
+    }
+
+    h1 {
+      color: #00d4ff;
+      font-size: 3rem;
+      margin-bottom: 20px;
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+      letter-spacing: 2px;
+    }
+
+    .info {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+      letter-spacing: 1px;
+    }
+
+    .menu {
+      margin-bottom: 15px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .menu button {
+      background: #00d4ff;
+      color: #031b4f;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.35);
+    }
+
+    .menu button:hover {
+      background: #57e3ff;
+    }
+
+    canvas {
+      background: #0f3460;
+      border: 3px solid #00d4ff;
+      border-radius: 8px;
+      box-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+      cursor: none;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>PONG GAME</h1>
+  <p class="info">Watch the ball bounce</p>
+  <div id="menu" class="menu">
+    <button id="btnSingle">Single Player</button>
+    <button id="btnMulti">Multiplayer</button>
+  </div>
+  <canvas id="game" class="hidden" width="800" height="500"></canvas>
+</div>
+
+<script src="game.js"></script>
+
+</body>
+</html>
